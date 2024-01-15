@@ -1,0 +1,4 @@
+include countASAP/ATAC_process/*
+include countASAP/asap_process.py
+include countASAP/asapSeq_barcodes.csv
+include countASAP/run_process.sh

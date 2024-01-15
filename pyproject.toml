@@ -1,0 +1,36 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "countASAP"
+version = "0.1"
+authors = [
+  { name="Chris Boughter", email="ctboughter@gmail.com" },
+]
+description = "A software for converting ASAPseq FASTQs to count matrices"
+readme = "README.md"
+requires-python = ">=3.8"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+dependencies = [
+    "requests",
+    'importlib-metadata; python_version<"3.8"',
+    'rapidfuzz==3.5.2',
+    'anndata==0.9.2',
+    'pandas==2.0.3',
+    'numpy==1.24.4',
+    'matplotlib==3.7.3',
+    'biopython==1.81'
+]
+
+[project.urls]
+"Homepage" = "https://github.com/ctboughter/countASAP"
+"Bug Tracker" = "https://github.com/ctboughter/countASAP/issues"
+
+[project.scripts]
+countASAP = "countASAP.asap_process:run"
+pullEXs = "countASAP.get_tests:getit"
