@@ -1,4 +1,6 @@
 include countASAP/ATAC_process/*
+include countASAP/ex_inputs/*
 include countASAP/asap_process.py
-include countASAP/asapSeq_barcodes.csv
 include countASAP/run_process.sh
+include countASAP/get_tests.py
+include countASAP/__init__.py

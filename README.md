@@ -19,7 +19,7 @@ Of course, replacing MYPATH with the path to each of these files on your machine
 If you don't have your own ASAPseq barcode file or example whitelist, or need to identify the precise formatting used by countASAP, you can call:
 
 ```
-pip install pullEXs
+pullEXs
 ```
 
 To copy a directory of example inputs into your current directory.
