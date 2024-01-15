@@ -35,7 +35,7 @@ chrom_assay <- CreateChromatinAssay(
   sep = c(":", "-"),
   fragments = 'out_yXXX/outs/fragments.tsv.gz',
   min.cells = 10,
-  min.features = 1
+  min.features = 200
 )
 
 data <- CreateSeuratObject(
@@ -50,7 +50,7 @@ annotations <- GetGRangesFromEnsDb(ensdb = EnsDb.Mmusculus.v79)
 
 # change to UCSC style since the data was mapped to hg19
 seqlevels(annotations) <- paste0('chr', seqlevels(annotations))
-genome(annotations) <- "mm10"
+#genome(annotations) <- "mm10"
 
 Annotation(data) <- annotations
 
@@ -96,19 +96,102 @@ dev.off()
 
 # So this is how we're supposed to QC, but it seems like with this data, we won't be getting ANY of these
 # to work (nowhere near the expected number of peaks)
-#data <- subset(
-#  x = data,
-#  subset = nCount_peaks > 3000 &
-#    nCount_peaks < 30000 &
-#    pct_reads_in_peaks > 15 &
-#    blacklist_ratio < 0.05 &
-#    nucleosome_signal < 4 &
-#    TSS.enrichment > 3
-#)
+data <- subset(
+  x = data,
+  subset = nCount_peaks > 3000 &
+    nCount_peaks < 30000 &
+    pct_reads_in_peaks > 15 &
+    blacklist_ratio < 0.05 &
+    nucleosome_signal < 4 &
+    TSS.enrichment > 2
+)
 #data
 
 ## This final normalization step might be where we then output our files.
 data <- RunTFIDF(data)
+
+# Get the findRegion function from Signac repo:
+FindRegion <- function(
+  object,
+  region,
+  sep = c("-", "-"),
+  assay = NULL,
+  extend.upstream = 0,
+  extend.downstream = 0
+) {
+  if (!is(object = region, class2 = "GRanges")) {
+    # first try to convert to coordinates, if not lookup gene
+    region <- tryCatch(
+      expr = suppressWarnings(
+        expr = StringToGRanges(regions = region, sep = sep)
+      ),
+      error = function(x) {
+        region <- LookupGeneCoords(
+          object = object,
+          assay = assay,
+          gene = region
+        )
+        return(region)
+      }
+    )
+    if (is.null(x = region)) {
+      stop("Gene not found")
+    }
+  }
+  region <- suppressWarnings(expr = Extend(
+    x = region,
+    upstream = extend.upstream,
+    downstream = extend.downstream
+  )
+  )
+  return(region)
+}
+# Some code from Budha:
+mat <- GetAssayData(object = data, assay = "peaks", slot = "data")
+mat <- as.matrix(mat)
+
+mode <- 'Multi' # Set to Single or Multi, depending on the requirement of analysis
+
+regions <- row.names(mat)
+gene_info <- rep("NA", length(regions))
+gene_meta <- data.frame(regions, gene_info)
+
+# Certain patches of the code in the loop is taken from the code of the Signac function AnnotatioPlot
+
+for (k in 1:length(regions)) {
+  
+  region <- FindRegion(object = data, region = regions[k], sep = c("-", "-"), 
+        assay = "peaks", extend.upstream = 0, extend.downstream = 0)
+  start.pos <- start(x = region)
+  end.pos <- end(x = region)
+  chromosome <- seqnames(x = region)
+    
+  annotation <- Annotation(object = data)
+    
+  annotation.subset <- subsetByOverlaps(x = annotation, ranges = region)
+  genes.keep <- unique(x = annotation.subset$gene_name)
+  
+  if (length(genes.keep)>0) {
+    if (length(genes.keep)==1) {
+      gene_meta$gene_info[k] <- genes.keep
+    }
+    if (length(genes.keep)>1) {
+      if (mode == 'Single') {
+      gene_meta$gene_info[k] <- genes.keep[1]
+    }
+    
+    if (mode == "Multi") {
+      gene_meta$gene_info[k] <- paste(genes.keep, collapse = ", ")
+      print(k)
+    }
+    }
+    
+  }
+}
+
+# These outputs might be a bit more nicely formatted...
+write.csv(mat, "out_yXXX/outs/mat_XXX.csv")
+write.csv(gene_meta, "out_yXXX/outs/gene_meta_XXX.csv")
 
 ###########################################################################################
 # EVERYTHING BELOW HERE RUN JUST THIS FIRST TIME. COMMENT ALL OF IT OUT LATER
