@@ -18,18 +18,20 @@ def main():
     parser.add_argument("-cr", "--cellRead",help="Full filename containing cell ID reads (read2 on Novaseq v4)",required=True,type=str)
     parser.add_argument("-br", "--barcodeRead",help="Full filename containing barcode ID reads (read3 on Novaseq v4)",required=True,type=str)
     parser.add_argument("-wl", "--whiteList",help="Full filename of processed ATAC data or whitelist",required=True,type=str)
-    parser.add_argument("-ref", "--reference",help="Path and filename to barcode whitelist",required=True,type=str)
-    parser.add_argument("-out", "--outName",help="Path and filename to barcode whitelist",required=False,default='count_out.csv',type=str)
+    parser.add_argument("-ref", "--reference",help="Path and filename to surface oligo whitelist",required=True,type=str)
+    parser.add_argument("-out", "--outName",help="Name of outputs from this processing",required=False,default='count_out.csv',type=str)
     parser.add_argument("-tol", "--cellTol",help="Mismatch tolerance (in basepairs) for Hamming similarity between reads and cellIDs (default 1)",required=False,default=1,type=int)
     parser.add_argument("-mis", "--barFrac",help="Mismatch tolerance (as a fraction) between reads and ASAP barcodes (default 0.95)",required=False,default=0.95,type=float)
     parser.add_argument("-proc", "--processors",help="Number of workers to call for RapidFuzz parallelization (default -1 [all])",required=False,default=-1,type=int)
-    parser.add_argument("-awl", "--atacWhite",help="Is your whitelist just a processed ATAC file? [T/F]",required=False,default=True,type=bool)
+    parser.add_argument("-awl", "--atacWhite",help="Is your whitelist just a processed ATAC file? [T/F]",required=False,default='True')
+    parser.add_argument("-ass","--assay",help="Define the assay you are analyzing, CITE or ASAP.",required=False,default='ASAP')
+    parser.add_argument("-umi","--umiDrop",help='Drop only duplicate UMIs? [T/F]',required=False,default='True')
     args = parser.parse_args()
     return(args)
 
 def run():
     args = main()
-
+    drop_exact_UMI = args.umiDrop
     outName = args.outName
     # Optional things to define
     cell_mismatch_tol = args.cellTol # allows for one mismatch
@@ -54,6 +56,9 @@ def run():
         raise ValueError("Missing cell read specification")
     else:
         r2 = list(SeqIO.parse(r2N, "fastq"))
+
+    # We can check to see if r3N is well defined first,
+    # But dont load in until later for memory allocation.
     r3N = args.barcodeRead
     if len(r3N) == 0:
         #r3N=glob.glob(asapDir+"ASAPYD"+data_num+"*R3*")
@@ -62,10 +67,6 @@ def run():
         #r3 = list(SeqIO.parse(r3N[0], "fastq"))
         raise ValueError("Missing barcode read specification")
 
-    else:
-        # If you're loading things in the classic way,
-        # do it like this...
-        r3 = list(SeqIO.parse(r3N, "fastq"))
     codePath = args.reference # 'asapSeq_barcodes.csv' in test data
     whitelist = args.whiteList
 
@@ -73,15 +74,15 @@ def run():
     # Get the read id for every single sample
     # Can add this as an option for users if we want, but this was really just an artifact
     # of making sure that our data was properly deposited... For now don't support
-    check_id = False
-    if check_id:
-        uniq_id = [a.name[-14:] for a in r2]
-        id_df = pandas.DataFrame(uniq_id)
+    #check_id = False
+    #if check_id:
+    #    uniq_id = [a.name[-14:] for a in r2]
+    #    id_df = pandas.DataFrame(uniq_id)
 
-        uniq_i2 = [a.name[-14:] for a in r3]
-        id_df2 = pandas.DataFrame(uniq_i2)
+    #    uniq_i2 = [a.name[-14:] for a in r3]
+    #    id_df2 = pandas.DataFrame(uniq_i2)
 
-        print(id_df.equals(id_df2))
+    #    print(id_df.equals(id_df2))
 
     # We don't use seq1 at all! comment it out
     #seq1 = [str(a.seq) for a in r1]
@@ -91,13 +92,10 @@ def run():
     # Need to be better about clearing memory as we go
     r2 = []
 
-    seq3 = [str(a.seq) for a in r3]
-    r3 = []
-
     asap_barcodes = pandas.read_csv(codePath)
-    colnames = [[a][0][3:] for a in asap_barcodes['name'].values]
-
-    if from_atac:
+    #colnames = [[a][0][3:] for a in asap_barcodes['name'].values]
+    # I HATE doing things this way but the python parser makes it a pain to pass T/F statements
+    if from_atac.lower()=='true':
         atac = anndata.read_h5ad(whitelist)
         barcodes = atac.obs_names
     else:
@@ -112,16 +110,21 @@ def run():
     # pretty fast though. Even with 10k cells its less than a second
     # List of CellIDs
     comp_list = []
+    assay = args.assay
     for xx in barcodes:
-        comp_list = comp_list + [str(Seq.Seq(xx[:-2]).reverse_complement())]
+        if assay.lower() == 'asap':
+            comp_list = comp_list + [str(Seq.Seq(xx[:-2]).reverse_complement())]
+        elif assay.lower() == 'cite':
+            # Note, you dont need the reverse complement for citeSeq
+            comp_list = comp_list + [xx[:-2]]
 
     #  Convert barcodes to a string
     checkList = asap_barcodes['sequence'].values
 
     # How we gonna chunk up our sequences?
-    # If you are well over a million sequences, you gotta chunk up 
-    if len(seq2) > 1*10**6:
-        num_fact = np.ceil(len(seq2)/10**6)
+    # If you are well over 100k sequences, you gotta chunk up 
+    if len(seq2) > 1*10**5:
+        num_fact = np.ceil(len(seq2)/10**5)
         chunkers = int(np.ceil(len(seq2)/num_fact))
         chunk_list = []
         for chunker in np.arange(int(num_fact)):
@@ -129,31 +132,96 @@ def run():
 
     cell_mismatch = len(comp_list[0])-cell_mismatch_tol
     fin_cellMatch = []; test_mismatch = False
+    #dup_match = []
     pre_len = 0
     for chunk in np.arange(int(num_fact)):
         sub_seq2 = seq2[chunk_list[chunk][0]:chunk_list[chunk][1]]
-        x=fuzz.process.cdist(sub_seq2,comp_list,scorer=Hamming.similarity,score_cutoff=len(comp_list[0])-cell_mismatch_tol,workers=procs)
+        x=fuzz.process.cdist(sub_seq2,comp_list,scorer=Hamming.similarity,score_cutoff=cell_mismatch,workers=procs)
         # Looks like this "nonzero" function might be a fast way to sort
         # reads to their respective cell identifiers
         matched_cell_coords = x.nonzero()
+        # Drop x for memory
+        x = []
         print('finished cell chunk ' + str(chunk) + "/" + str(num_fact))
-        cell_matched_reads = np.transpose(pandas.DataFrame(matched_cell_coords)).drop_duplicates(0).values
+        temptemp = np.transpose(pandas.DataFrame(matched_cell_coords))
+        # Control for memory...
+        matched_cell_coords = []
+        # What this "drop_duplicates" is doing is dropping those reads that have ambiguous assignments
+        # i.e. one read is being assigned to two barcodes (or more than two)
+        cell_matched_reads = temptemp.drop_duplicates(0)#.values # Used to turn it into values, now turn it into DF.
+        #if save_dups:
+        #    dup_match = dup_match + temptemp[temptemp.duplicated(0,keep="first")].values
         # Our read index is resetting every time, so we have to add the chunk list in...
-        cell_matched_reads[:,0] = cell_matched_reads[:,0] + pre_len
+        temptemp = []
+        umi_dropped = []
+        #print('starting umiDrop')
+        holder = 0
+        if drop_exact_UMI.lower() == 'true':
+            # This is obviously much faster than iterating through all 
+            umi_drop= pandas.DataFrame(np.array(sub_seq2)[cell_matched_reads[0].values]).drop_duplicates()
+            new_matched_reads=cell_matched_reads.iloc[umi_drop.index].values
+            cell_matched_reads = []
+            umi_drop = []
+        else:
+            # So this is WILDLY slow. Need to do something about that...
+            # I could probably remove the FOR loop and just change the scoring of the CDIST
+            # function??? Yea that's probably the best option...
+            for refSeq in cell_matched_reads[1].drop_duplicates().values:
+                umiCheck = cell_matched_reads[cell_matched_reads[1]==refSeq]
+                if len(umiCheck) < 2:
+                    #print('they do exist!')
+                    continue
+                # Need to reset the indices of the sequences so we know which to drop from the UMIs...
+                seqCheck = np.array(sub_seq2)[umiCheck[0].values]
+                UMIs = [a[16:] for a in seqCheck]
+
+                x=fuzz.process.cdist(UMIs,UMIs,scorer=Hamming.similarity,score_cutoff=len(UMIs[0])-1,workers=procs)
+                np.fill_diagonal(x,0)
+                # Alright there probably won't be that many of these, lets do some slow coding.
+                pair_dups = np.vstack((x.nonzero()))
+                if np.shape(pair_dups)[1] == 0:
+                    findup = pair_dups[0]
+                else:
+                    redup = []
+                    for j in np.arange(np.shape(pair_dups)[1]):
+                        n1 = pair_dups[0,j]
+                        n2 = pair_dups[1,j]
+                        if n1 > n2:
+                            redup = redup + [[n1,n2]]
+                        else:
+                            redup = redup + [[n2,n1]]
+
+                    # Two drop duplicates here. First delete duplicate PAIRS, then delete duplicate ENTRIES
+                    findup = pandas.DataFrame(redup).drop_duplicates().iloc[:,0].drop_duplicates().values
+                
+                temperDF = umiCheck.reset_index(drop=True)
+                temperDF = temperDF.drop(findup,axis=0)
+                umi_dropped = umi_dropped + [temperDF.values]
+                holder+=1
+                if holder % 100 == 0:
+                    print(holder/len(cell_matched_reads[1].drop_duplicates()))
+            new_matched_reads = np.concatenate(umi_dropped)
+        ###########################################################
+
+        new_matched_reads[:,0] = new_matched_reads[:,0] + pre_len
 
         pre_len = pre_len + len(sub_seq2)
 
-        fin_cellMatch = fin_cellMatch + [cell_matched_reads]
+        fin_cellMatch = fin_cellMatch + [new_matched_reads]
+        new_matched_reads = []
 
         if test_mismatch:
             # so with 1bp mismatch we have ~140 duplicates in over a million reads... Pretty good
             nonZero_len = len(matched_cell_coords)
             singlet_len = len(cell_matched_reads)
             frac_doubCount_cellID = (nonZero_len-singlet_len)/len(sub_seq2)
-
+    seq2 = []
     barcode_mismatch = 100*barcode_percent_match
     fin_barcodeMatch = []
     pre_len = 0
+    r3 = list(SeqIO.parse(r3N, "fastq"))
+    seq3 = [str(a.seq) for a in r3]
+    r3 = []
     for chunk in np.arange(int(num_fact)):
         sub_seq3 = seq3[chunk_list[chunk][0]:chunk_list[chunk][1]]
         zzz=fuzz.process.cdist(checkList,sub_seq3,scorer=fuzz.fuzz.partial_ratio,score_cutoff=barcode_mismatch,workers=procs)
@@ -172,6 +240,7 @@ def run():
             nonZero_len = len(matched_code_coords)
             singlet_len = len(barcode_matched_reads)
             frac_doubCount_barcode = (nonZero_len-singlet_len)/len(sub_seq3)
+            dup_match_cell = dup_match_cell + [frac_doubCount_barcode]
 
     # Final data processing...
     for i in np.arange(len(fin_barcodeMatch)):

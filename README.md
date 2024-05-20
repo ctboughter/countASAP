@@ -24,9 +24,15 @@ pullEXs
 
 To copy a directory of example inputs into your current directory.
 
+You can also run an instance of countASAP for CITEseq analysis:
+
+```
+countASAP -cr MYPATH/citeR1.fastq -br MYPATH/citeR2.fastq -wl MYPATH/d101_barcodes.csv -ref MYPATH/citeSeq_codes.csv -awl False --assay CITE
+```
+
 When publishing analysis using this software, please cite:
 
-Boughter CT, Chatterjee B, Singh NJ, Meier-Schellersheim M. CountASAP: A Lightweight, Easy to Use Python Package for Processing ASAPseq Data. BioRxiv 2024q
+Boughter CT, Chatterjee B, Singh NJ, Meier-Schellersheim M. CountASAP: A Lightweight, Easy to Use Python Package for Processing ASAPseq Data. BioRxiv 2024
 
 # Important Assumptions
 As of this first version of the software (v0.1) formatting is unfortunately quite rigid, and makes a number of assumptions. However, we will be quick to respond to issues raised calling for additional functionality. Further, given the lightweight nature of the main script, computationally inclined users can likely manually edit some of these more strict requirements.
