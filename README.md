@@ -45,3 +45,20 @@ Assumptions listed in no particular order:
 3. Your Cell ID barcodes have a trailing "-1" after them. Such as "AAACCTGAGAAACCAT-1"
 4. Your Cell ID *read* is the reverse complement of your Cell ID.
 5. If using different ASAPseq barcodes (i.e. replacing the asapSeq_barcodes.csv file with your own) be sure it is formatted in the *exact* same way
+
+# Command Line Options
+To make this documentation comprehensive, we keep a running list of all of the possible options/flags called when running CountASAP:
+
+```
+    "-cr", "--cellRead",help="Full filename containing cell ID reads (read2 on Novaseq v4)",required=True,type=str
+    "-br", "--barcodeRead",help="Full filename containing barcode ID reads (read3 on Novaseq v4)",required=True,type=str
+    "-wl", "--whiteList",help="Full filename of processed ATAC data or whitelist",required=True,type=str
+    "-ref", "--reference",help="Path and filename to surface oligo whitelist",required=True,type=str
+    "-out", "--outName",help="Name of outputs from this processing",required=False,default='count_out.csv',type=str
+    "-tol", "--cellTol",help="Mismatch tolerance (in basepairs) for Hamming similarity between reads and cellIDs (default 1)",required=False,default=1,type=int
+    "-mis", "--barFrac",help="Mismatch tolerance (as a fraction) between reads and ASAP barcodes (default 0.95)",required=False,default=0.95,type=float
+    "-proc", "--processors",help="Number of workers to call for RapidFuzz parallelization (default -1 [all])",required=False,default=-1,type=int
+    "-awl", "--atacWhite",help="Is your whitelist just a processed ATAC file? [T/F]",required=False,default='True'
+    "-ass","--assay",help="Define the assay you are analyzing, CITE or ASAP.",required=False,default='ASAP'
+    "-umi","--umiDrop",help='Drop only duplicate UMIs? [T/F]',required=False,default='True'
+```
