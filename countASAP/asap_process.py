@@ -10,6 +10,8 @@ import rapidfuzz as fuzz
 from rapidfuzz.distance import Hamming
 import glob
 import argparse
+import gzip
+import time
 
 # Need to add handling for bad directory, and for directory shorthands...
 
@@ -30,6 +32,7 @@ def main():
     return(args)
 
 def run():
+    start = time.time()
     args = main()
     drop_exact_UMI = args.umiDrop
     outName = args.outName
@@ -55,7 +58,12 @@ def run():
         #r2 = list(SeqIO.parse(r2N[0], "fastq"))
         raise ValueError("Missing cell read specification")
     else:
-        r2 = list(SeqIO.parse(r2N, "fastq"))
+        # Change the code to now allow for loading in GZIP files
+        if r2N.find('.gz') != -1:
+            with gzip.open(r2N, "rt") as handle:
+                r2 = list(SeqIO.parse(handle, "fastq"))
+        else:
+            r2 = list(SeqIO.parse(r2N, "fastq"))
 
     # We can check to see if r3N is well defined first,
     # But dont load in until later for memory allocation.
@@ -219,7 +227,14 @@ def run():
     barcode_mismatch = 100*barcode_percent_match
     fin_barcodeMatch = []
     pre_len = 0
-    r3 = list(SeqIO.parse(r3N, "fastq"))
+
+    # Load in R3 here
+    if r3N.find('.gz') != -1:
+        with gzip.open(r3N, "rt") as handle:
+            r3 = list(SeqIO.parse(handle, "fastq"))
+    else:
+        r3 = list(SeqIO.parse(r3N, "fastq"))
+
     seq3 = [str(a.seq) for a in r3]
     r3 = []
     for chunk in np.arange(int(num_fact)):
@@ -289,6 +304,8 @@ def run():
     finDF.index = barcodes
 
     finDF.to_csv(outName)
+    end = time.time()
+    print(end-start)
 
 if __name__ == '__main__':
     x=run()
