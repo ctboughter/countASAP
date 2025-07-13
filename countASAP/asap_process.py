@@ -182,7 +182,7 @@ def run():
                 # Need to reset the indices of the sequences so we know which to drop from the UMIs...
                 seqCheck = np.array(sub_seq2)[umiCheck[0].values]
                 UMIs = [a[16:] for a in seqCheck]
-
+                # Remove UMIs that are 1 distance away
                 x=fuzz.process.cdist(UMIs,UMIs,scorer=Hamming.similarity,score_cutoff=len(UMIs[0])-1,workers=procs)
                 np.fill_diagonal(x,0)
                 # Alright there probably won't be that many of these, lets do some slow coding.
