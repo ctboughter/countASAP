@@ -31,6 +31,14 @@ You can also run an instance of countASAP for CITEseq analysis:
 countASAP -cr MYPATH/citeR1.fastq -br MYPATH/citeR2.fastq -wl MYPATH/d101_barcodes.csv -ref MYPATH/citeSeq_codes.csv -awl False --assay CITE
 ```
 
+If you want to easily access some example scripts and the R script necessary for processing raw ATACseq data, you can call:
+
+```
+pullScripts
+```
+
+To copy a directory of example python notebooks and a critical R script for processing raw data. The directory will show up under the name "nonASAP_scripts".
+
 When publishing analysis using this software, please cite:
 
 Boughter CT, Chatterjee B, Singh NJ, Meier-Schellersheim M. CountASAP: A Lightweight, Easy to Use Python Package for Processing ASAPseq Data. BioRxiv 2024
@@ -75,7 +83,7 @@ pip install countASAP
 Best of luck with your programming journey! Hope this was a useful introduction to using Anaconda to create environments.
 
 # Important Assumptions
-As of this first version of the software (v0.2) formatting is unfortunately quite rigid, and makes a number of assumptions. However, we will be quick to respond to issues raised calling for additional functionality. Further, given the lightweight nature of the main script, computationally inclined users can likely manually edit some of these more strict requirements.
+As of this first version of the software (v0.3) formatting is unfortunately quite rigid, and makes a number of assumptions. However, we will be quick to respond to issues raised calling for additional functionality. Further, given the lightweight nature of the main script, computationally inclined users can likely manually edit some of these more strict requirements.
 
 Assumptions listed in no particular order:
 1. The cell ID whitelist from ATAC processing is formatted into an H5ad format. An R script is included for converting ATACseq data into an H5ad format (see countASAP/ATAC_process/process_ATAC_template.R)

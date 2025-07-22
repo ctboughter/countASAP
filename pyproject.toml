@@ -34,3 +34,4 @@ dependencies = [
 [project.scripts]
 countASAP = "countASAP.asap_process:run"
 pullEXs = "countASAP.get_tests:getit"
+pullScripts = "countASAP.get_tests:getScripts"

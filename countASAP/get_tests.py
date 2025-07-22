@@ -11,3 +11,10 @@ def getit():
     aims_dir = countASAP.__file__[:-11]
     startDir = os.getcwd()
     shutil.copytree(aims_dir+'ex_inputs',startDir+'/ex_inputs')
+
+def getScripts():
+    # This basically finds out *where* the countASAP package is installed
+    # then you can get the path, and copy the examples out of it.
+    aims_dir = countASAP.__file__[:-11]
+    startDir = os.getcwd()
+    shutil.copytree(aims_dir+'nonASAP_scripts',startDir+'/nonASAP_scripts')
