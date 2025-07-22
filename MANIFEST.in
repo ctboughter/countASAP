@@ -1,5 +1,6 @@
 include countASAP/ATAC_process/*
 include countASAP/ex_inputs/*
+include countASAP/nonASAP_scripts/*
 include countASAP/asap_process.py
 include countASAP/get_tests.py
 include countASAP/__init__.py
